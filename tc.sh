@@ -292,21 +292,12 @@ else
     fi
 fi
 
-### CONDITIONAL COMPILING
-
-echo " == COMPILING =="
-
 if [ "$type_testing" == "1" ];then
-    compile_cc "$MAIN_FILE"
-    exe_name=$(get_exe $(rm_extension $MAIN_FILE))
     test_cases="$test_in_files"
 elif [ "$type_testing" == "2" ]; then
-    INCLUDE_FILES="$MAIN_FILE $INCLUDE_FILES" #Main file is just an include
-    for file in $test_c_files; do
-        compile_cc "$file"
-    done
     test_cases="$test_c_files"
 fi
+
 
 ### FILTER TEST CASES
 
@@ -321,6 +312,22 @@ if [ ! -z "$TESTS" ]; then
     unset CUT_FLAGS
 fi
 # echo "$test_cases"
+
+
+
+### CONDITIONAL COMPILING
+
+echo " == COMPILING =="
+
+if [ "$type_testing" == "1" ];then
+    compile_cc "$MAIN_FILE"
+    exe_name=$(get_exe $(rm_extension $MAIN_FILE))
+elif [ "$type_testing" == "2" ]; then
+    INCLUDE_FILES="$MAIN_FILE $INCLUDE_FILES" # Main file is just an include
+    for file in $test_cases; do
+        compile_cc "$file"
+    done
+fi
 
 
 all_tests=0
