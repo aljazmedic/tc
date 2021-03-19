@@ -1,13 +1,17 @@
 #!/bin/bash
 #?Usage:
-#? tc.sh [-h] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]
-#?  [-t | -T <n> | -f <s>]
+#? tc.sh [-h] [clean] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]
+#?    [-t | -T <n> | -f <s>] 
 #?
-#? -h, --help             Help
-#? -t, --timed            Display running time
-#? -T <n>, --timeout <n>  Specify max timeout time 
-#?                        Default: '1'
-#? -f <s>, --format <s>   Format for testing files
+#? actions:
+#?    clean               Delete diff and res files
+#?
+#? -h, --help             Help on command usage
+#? -t, --timed            Display time taken to execute the code
+#? -T <n>, --timeout <n>  Larges amount of seconds allowed before
+#?                        timeout
+#?                        Default: 1
+#? -f <s>, --format <s>   Format of test data prefix
 #?                        Default: 'test'
 
 TC_PATH="."
@@ -29,6 +33,17 @@ OK_STRING="\033[1;32mOK\033[0;38m"
 FAILED_STRING="\033[1;31mfailed\033[0;38m"
 TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"
 
+### CHECKING IF ALL THE PROGRAMS EXIST
+REQUIRED_COMMANDS=("basename" "bc" "date" "diff" "find" "grep" "realpath" "timeout" "$CC")
+
+for COMMAND in ${REQUIRED_COMMANDS[@]}; do
+    if ! command -v $COMMAND &> /dev/null; then
+        echo "$COMMAND command not found, exiting" >&2
+        exit 1
+    fi
+done
+
+
 ### ARGUMENT PARSING
 INCLUDE_FILES="" #Additional files to get compiled
 POS_PARAMS=""
@@ -36,15 +51,19 @@ POS_PARAMS=""
 while (( "$#" )); do
   case "$1" in
     -h|--help)
-        echo " tc.sh [-h] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]"
+        echo " tc.sh [-h] [clean] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]"
         echo "    [-t | -T <n> | -f <s>] "
-        echo " -h, --help             Pomoč"
-        echo " -t, --timed            Izpis časa"
-        echo " -T <n>, --timeout <n>  Največje dovoljeno število sekund"
-        echo "                        izvajanja programa"
-        echo "                        Privzeto: '1'"
-        echo " -f <s>, --format <s>   Format datotek za testiranje."
-        echo "                        Privzeto: 'test'"
+        echo
+        echo " actions:"
+        echo "    clean               Delete diff and res files"
+        echo
+        echo " -h, --help             Help on command usage"
+        echo " -t, --timed            Display time taken to execute the code"
+        echo " -T <n>, --timeout <n>  Larges amount of seconds allowed before"
+        echo "                        timeout"
+        echo "                        Default: 1"
+        echo " -f <s>, --format <s>   Format of test data prefix"
+        echo "                        Default: 'test'"
       exit 0
       ;;
     -t|--timed)
@@ -164,7 +183,7 @@ elif [ "$os_type" = "OSX" ]; then # TODO: gdate, gdiff, gtimeout?
 elif [ "$os_type" = "WINDOWS" ]; then
     get_exe() {  r=$(realpath $1); echo "$r.exe"; }
 else 
-    echo "Unsupported os :(" >&2 #)
+    echo "Unsupported OS" >&2 #)
     exit 1
 fi
 
@@ -173,14 +192,15 @@ fi
 function compile_cc {
     abs_target=$(realpath "$1")
     base_name=$(rm_extension $abs_target)
+    base_target=$(basename "$1")
     #echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS"
     $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS
     exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
-        echo -e "Compiling files $files $FAILED_STRING, exiting." >&2
+        echo -e "Compiling file $base_target $FAILED_STRING, exiting" >&2
         exit 1
     fi
-    echo "Compiled $(basename "$1")"
+    echo "Compiled $base_target"
 }
 
 
