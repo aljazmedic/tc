@@ -7,8 +7,11 @@ Parametri
 --
 
 ```
-tc.sh [-h] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]
+tc.sh [-h] [clean] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]
     [-t | -T <n> | -f <s>] 
+
+ funkcija:
+    clean               Izbris diff in res datotek
 
  -h, --help             Pomoč
 
@@ -33,7 +36,7 @@ $./tc.sh testi/ program.c -t
 # Izhod
 Using 6 .in files.
  == COMPILING ==
-Prevedel program.c
+Compiled program.c
 
  == TESTING ==
 Test01 -- OK [0.27 s]
@@ -42,7 +45,7 @@ Test03 -- OK [0.15 s]
 Test04 -- OK [0.14 s]
 Test05 -- OK [0.13 s]
 Test06 -- OK [0.13 s]
-Rezultat 6/6
+Result 6/6
 ```
 
  - Testiranje `.c` `.out`
@@ -71,11 +74,11 @@ Result 2/2
 $./tc.sh clean tests/ -f primer
 
 # Izhod
-/path/to/tests/primer01.res
-/path/to/tests/primer01.diff
-/path/to/tests/primer02.res
-/path/to/tests/primer02.diff
-/path/to/tests/primer03.res
-/path/to/tests/primer03.diff
+/pot/do/testov/primer01.res
+/pot/do/testov/primer01.diff
+/pot/do/testov/primer02.res
+/pot/do/testov/primer02.diff
+/pot/do/testov/primer03.res
+/pot/do/testov/primer03.diff
 Remove all [y/n]? y
 ```
