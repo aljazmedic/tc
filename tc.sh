@@ -21,7 +21,7 @@
 #?                        Default: 'test'
 
 TC_PATH="."
-TESTS="-"
+TESTS=""
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
 KILL_AFTER=$((TIMEOUT_VAL+2))
@@ -41,7 +41,7 @@ FAILED_STRING="\033[1;31mfailed\033[0;38m"
 TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"
 
 ### CHECKING IF ALL THE PROGRAMS EXIST
-REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "timeout" "$CC")
+REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "sort" "timeout" "$CC")
 
 for PROGRAM in ${REQUIRED_PROGRAMS[@]}; do
     if ! command -v $PROGRAM &> /dev/null; then
@@ -119,7 +119,7 @@ while (( "$#" )); do
                 fi
                 shift 2
             else
-                echo "Error: Invalid value of test cases: '$1'" >&2
+                echo "Error: Invalid value for $1" >&2
                 exit 1
             fi
         else
@@ -198,7 +198,7 @@ function get_base_name { rm_extension $(basename "$1"); }
 
 
 if [[ ${ACTION^^} = "CLEAN" ]]; then
-    file_matches=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.\(res\|diff\) ) # Search for tests
+    file_matches=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.\(res\|diff\) | sort) # Search for tests
     
     if [ $(echo "$file_matches" | wc -w) = "0" ]; then
         echo "Nothing to remove"
@@ -262,8 +262,8 @@ function compile_cc {
 
 ### DETECTING TYPE OF TESTING
 
-test_c_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.c) # Search for tests
-test_in_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.in) # Search for tests
+test_c_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.c  | sort ) # Search for tests
+test_in_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.in  | sort ) # Search for tests
 
 test_c_n=$(echo "$test_c_files" | wc -w | bc)
 test_in_n=$(echo "$test_in_files" | wc -w | bc)
