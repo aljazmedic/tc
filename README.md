@@ -6,9 +6,9 @@ Program, namenjen preverjanju testov za programski jezik C
 Parametri
 --
 
-```
-tc.sh [-h] [clean] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> ...]
-    [-t | -T <n> | -f <s>] 
+<pre>
+tc.sh [-h] [clean] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_program_1> ...]
+    [-t | -T &ltn> | -f &lts> | -n &ltI> ] 
 
  funkcija:
     clean               Izbris diff in res datotek
@@ -17,13 +17,22 @@ tc.sh [-h] [clean] [<pot_do_testov>] <glavni_c_program> [<dodatni_c_program_1> .
 
  -t, --timed            Izpis časa
 
- -T <n>, --timeout <n>  Največje dovoljeno število sekund
+ -T &ltn>, --timeout &ltn>  Največje dovoljeno število sekund
                         izvajanja programa
                         Privzeto: '1'
 
- -f <s>, --format <s>   Format datotek za testiranje.
+ -n &ltI>                 Interval razpona obravnavanih primerov.
+                        z menjavo - z ~ bo izbran komplement
+                        a-b   (a, b]
+                        a-    (a, ...)
+                         -b   (..., b]
+                         ~b   (b, ...)
+                        a~b   (..., a]U(b, ...)
+                        Privzeto: '-' (vsi)
+
+ -f &lts>, --format &lts>   Format datotek za testiranje.
                         Privzeto: 'test'
-```
+</pre>
 
 Uporaba
 --
@@ -34,7 +43,7 @@ Uporaba
 $./tc.sh testi/ program.c -t
 
 # Izhod
-Using 6 .in files.
+Using 6 test.in files.
  == COMPILING ==
 Compiled program.c
 
@@ -53,11 +62,11 @@ Result 6/6
 
 # datoteke .c in .out se nahajajo v trenutnem imeniku,
 # program pa v drugem imeniku. Čas izvedbe je podaljšan na 2 sekundi,
-# testi pa oblike primerXX
-$../tc.sh program.c -f primer -T 2 -t
+# testi so oblike primerXX, preverili pa bomo le prve dva
+$../tc.sh program.c -f primer -T 2 -t -n -2
 
 # Izhod
-Using 2 .in files.
+Using 2 primer.in files.
  == COMPILING ==
 Compiled program.c
 
@@ -80,5 +89,6 @@ $./tc.sh clean tests/ -f primer
 /pot/do/testov/primer02.diff
 /pot/do/testov/primer03.res
 /pot/do/testov/primer03.diff
-Remove all [y/n]? y
+Remove all [y/n]?
+> y
 ```
