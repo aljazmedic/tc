@@ -32,6 +32,8 @@ tc.sh [-h] [clean] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_progra
 
  -f &lts>, --format &lts>   Format datotek za testiranje.
                         Privzeto: 'test'
+ -e &ltf>, --format &ltf>   Vhodna metoda c datoteke
+                        Privzeto: 'main'
 </pre>
 
 Uporaba

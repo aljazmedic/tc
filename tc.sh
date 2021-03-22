@@ -19,9 +19,12 @@
 #?                        Default: '-' (all)
 #? -f <s>, --format <s>   Format of test data prefix
 #?                        Default: 'test'
+#? -e <f>, --entry <f>    Default entry function for c file
+#?                        Default: 'main'
 
 TC_PATH="."
 TESTS=""
+ENTRY_FUNCTION="main"
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
 KILL_AFTER=$((TIMEOUT_VAL+2))
@@ -73,6 +76,8 @@ function print_help
     echo "                        Default: '-' (all)"
     echo " -f <s>, --format <s>   Format of test data prefix"
     echo "                        Default: 'test'"
+    echo " -e <f>, --entry <f>    Default entry function for c file"
+    echo "                        Default: 'main'"
 }
 
 
@@ -92,6 +97,16 @@ while (( "$#" )); do
     -T|--timeout)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
         TIMEOUT_VAL=$2
+        shift 2
+      else
+        echo "Error: Missing value for $1" >&2
+        print_help
+        exit 1
+      fi
+      ;;
+    -e|--entry)
+      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
+        ENTRY_FUNCTION=$2
         shift 2
       else
         echo "Error: Missing value for $1" >&2
@@ -120,6 +135,7 @@ while (( "$#" )); do
                 shift 2
             else
                 echo "Error: Invalid value for $1" >&2
+                print_help
                 exit 1
             fi
         else
@@ -249,8 +265,8 @@ function compile_cc {
     abs_target=$(realpath "$1")
     base_name=$(rm_extension $abs_target)
     base_target=$(basename "$1")
-    #echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS"
-    $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS
+    # echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION"
+    $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION
     exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         echo -e "Compiling file $base_target $FAILED_STRING, exiting" >&2
@@ -269,7 +285,7 @@ test_c_n=$(echo "$test_c_files" | wc -w | bc)
 test_in_n=$(echo "$test_in_files" | wc -w | bc)
 
 if [ $test_c_n -eq 0 ] && [ $test_in_n -eq 0 ];then
-    echo "No tests found." >&2
+    echo "No tests found in $TC_PATH." >&2
     exit 1
 elif [ $test_in_n -eq 0  ]; then
     echo "Using $test_c_n $FILE_PREFIX.c files."
