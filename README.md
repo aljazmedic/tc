@@ -41,7 +41,7 @@ Uporaba
  - Testiranje `.in` `.out`
 ```bash
 # datoteke .in in .out se nahajajo v ./testi/,
-# program pa v trenutnem imeniku. Zanima nas tudi čas izvedbe
+# tc.sh in program.c pa v trenutnem imeniku. Zanima nas tudi čas izvedbe
 $./tc.sh testi/ program.c -t
 
 # Izhod
@@ -63,9 +63,9 @@ Result 6/6
 ```bash
 
 # datoteke .c in .out se nahajajo v trenutnem imeniku,
-# program pa v drugem imeniku. Čas izvedbe je podaljšan na 2 sekundi,
-# testi so oblike primerXX, preverili pa bomo le prve dva
-$../tc.sh program.c -f primer -T 2 -t -n -2
+# program.c pa nekje drugje. Čas izvedbe je podaljšan na 2 sekundi,
+# testi so oblike primerXX.in, preverili pa bomo le prve dva
+$ tc.sh /pot/do/program.c -f primer -T 2 -t -n -2
 
 # Izhod
 Using 2 primer.in files.
@@ -82,7 +82,7 @@ Result 2/2
 
 # datoteke .c, .out in program.c se nahajajo v trenutnem imeniku.
 # Čas izvedbe je podaljšan na 2 sekundi. Testi so oblike testXX.c
-# testi so oblike test, vhodna metoda pa je __main__
+# Vhodna metoda je __main__
 $ tc.sh program.c -f test -T 2 -t -e __main__
 
 # Izhod
