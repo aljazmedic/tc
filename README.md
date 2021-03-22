@@ -32,7 +32,7 @@ tc.sh [-h] [clean] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_progra
 
  -f &lts>, --format &lts>   Format datotek za testiranje.
                         Privzeto: 'test'
- -e &ltf>, --format &ltf>   Vhodna metoda c datoteke
+ -e &ltf>, --entry &ltf>   Vhodna metoda c datoteke
                         Privzeto: 'main'
 </pre>
 
@@ -77,7 +77,31 @@ Primer01 -- OK [0.21 s]
 Primer02 -- OK [0.09 s]
 Result 2/2
 ```
+ - Testiranje šolskih primerov`.c` `.out`
+```bash
 
+# datoteke .c, .out in program.c se nahajajo v trenutnem imeniku.
+# Čas izvedbe je podaljšan na 2 sekundi. Testi so oblike testXX.c
+# testi so oblike test, vhodna metoda pa je __main__
+$ tc.sh program.c -f test -T 2 -t -e __main__
+
+# Izhod
+Using 6 test.c files.
+ == COMPILING ==
+Compiled test01.c
+Compiled test02.c
+Compiled test04.c
+Compiled test05.c
+Compiled test06.c
+
+ == TESTING ==
+Test01 -- OK
+Test02 -- OK
+Test04 -- OK
+Test05 -- OK
+Test06 -- OK
+Result 6/6
+```
 - Čiščenje
 
 ```bash
