@@ -295,7 +295,7 @@ if [[ ${ACTION^^} = "CLEAN" ]]; then
     read -p "> " ans
     if [ ${ans^^}  = "Y" ]; then
         for f in "$file_matches"; do
-            rm "$f"
+            rm $(remove_leading_dotslash "$f")
         done
     fi
     exit 0
