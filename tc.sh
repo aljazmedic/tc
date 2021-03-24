@@ -1,9 +1,12 @@
 #!/bin/bash
 #?Usage:
-#? tc.sh [-h] [clean] [<tests_path>] <main_c_program> [<included_c_programs> ...]
+#? tc.sh [-h] [clean|init] [<tests_path>] <main_c_program> [<included_c_programs> ...]
 #?    [-t | -T <n> | -f <s> | -n &ltI> ] 
+#?
 #? actions:
 #?    clean               Delete diff and res files
+#?    init                Generate .tcconfig in current directory
+#?
 #? -h, --help             Help on command usage
 #? -t, --timed            Display time taken to execute the code
 #? -T <n>, --timeout <n>  Largest amount of seconds allowed before
@@ -21,6 +24,12 @@
 #?                        Default: 'test'
 #? -e <f>, --entry <f>    Default entry function for c file
 #?                        Default: 'main'
+#? -l <n>, --log <n>      Log level for program. Options: 1|2|3|4
+#?                        1 - Only results
+#?                        2 - Tests
+#?                        3 - Tests and compiling
+#?                        4 - Debugging
+#?                        Default: 3
 
 TC_PATH="."
 LOG_LEVEL=3
@@ -65,11 +74,12 @@ done
 
 function print_help
 {
-    echo " tc.sh [-h] [clean] [<tests_path>] <main_c_program> [<included_c_programs> ...]"
+    echo " tc.sh [-h] [clean|init] [<tests_path>] <main_c_program> [<included_c_programs> ...]"
     echo "    [-t | -T <n> | -f <s> | -n &ltI> ] "
     echo
     echo " actions:"
     echo "    clean               Delete diff and res files"
+    echo "    init                Generate .tcconfig in current directory"
     echo
     echo " -h, --help             Help on command usage"
     echo " -t, --timed            Display time taken to execute the code"
@@ -88,6 +98,12 @@ function print_help
     echo "                        Default: 'test'"
     echo " -e <f>, --entry <f>    Default entry function for c file"
     echo "                        Default: 'main'"
+    echo " -l <n>, --log <n>      Log level for program. Options: 1|2|3|4"
+    echo "                        1 - Only results"
+    echo "                        2 - Tests"
+    echo "                        3 - Tests and compiling"
+    echo "                        4 - Debugging"
+    echo "                        Default: 3"
 }
 
 function log

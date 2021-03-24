@@ -7,11 +7,12 @@ Parametri
 --
 
 <pre>
-tc.sh [-h] [clean] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_program_1> ...]
+tc.sh [-h] [clean|init] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_program_1> ...]
     [-t | -T &ltn> | -f &lts> | -n &ltI> ] 
 
  funkcija:
     clean               Izbris diff in res datotek
+    init                Generira .tcconfig datoteko v trenutnem imeniku
 
  -h, --help             Pomoč
 
@@ -32,8 +33,15 @@ tc.sh [-h] [clean] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_progra
 
  -f &lts>, --format &lts>   Format datotek za testiranje.
                         Privzeto: 'test'
- -e &ltf>, --entry &ltf>   Vhodna metoda c datoteke
+ -e &ltf>, --entry &ltf>    Vhodna metoda c datoteke
                         Privzeto: 'main'
+ -l &ltn>, --log &ltn>      Stopnja izpisa.
+                        Možnosti: 1|2|3|4
+                        1 - samo rezultati
+                        2 - testi
+                        3 - testi in prevajanje
+                        4 - razhroščevanje
+                        Privzeto:'3'
 </pre>
 
 Uporaba
