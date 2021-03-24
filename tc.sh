@@ -257,7 +257,7 @@ TC_PATH=$(realpath "$TC_PATH")
 ### TRY GETTING LOCAL tcconfig
 # Check if new path is used and source from there
 LOCAL_CFG=$(realpath $TC_PATH/.tcconfig)
-if [[ -f $LOCAL_CFG ]]; then
+if [[ -f "$LOCAL_CFG" ]]; then
     source $LOCAL_CFG
     log 4 "Sourcing $LOCAL_CFG"
 fi
@@ -282,8 +282,8 @@ function get_base_name { rm_extension $(basename "$1"); }
 
 
 
-### CLEANING
 if [[ ${ACTION^^} = "CLEAN" ]]; then
+    ### CLEANING
     file_matches=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.\(res\|diff\) | sort) # Search for tests
     
     if [ $(echo "$file_matches" | wc -w) = "0" ]; then
@@ -300,13 +300,38 @@ if [[ ${ACTION^^} = "CLEAN" ]]; then
     fi
     exit 0
 elif [[ ${ACTION^^} = "INIT" ]]; then
-    cp "$GLOBAL_CFG" "$TC_PATH"
-    exit_code=$?
-    if [[ $exit_code -ne 0 ]];then
-        echo "Error: cannot add .tcconfig to $TC_PATH" >&2
-        exit $exit_code
+    ### INIT
+    # Check if config already exists
+    if [ -f "$LOCAL_CFG" ]; then
+        echo "Warning: $LOCAL_CFG already exists"
+        echo "Overwrite it [y/n]?"
+        read -p "> " ans
+        if [ ${ans^^}  = "Y" ]; then
+            rm "$LOCAL_CFG"
+        else
+            exit 0
+        fi
     fi
-    echo "Added .tcconfig to $TC_PATH"
+    # If parameters were passed, only use those
+    log 4 "$PARAMS_MAP"
+    if [ -z ${PARAMS_MAP[@]} ]; then
+        cp "$GLOBAL_CFG" "$TC_PATH"
+        exit_code=$?
+        if [[ $exit_code -ne 0 ]];then
+            echo "Error: cannot add .tcconfig to $TC_PATH" >&2
+            exit $exit_code
+        fi
+        echo "Added default .tcconfig to $TC_PATH"
+        exit 0
+    else
+        echo "# .tcconfig generated on $(date "+%D %T")" >> $LOCAL_CFG
+        for key in "${!PARAMS_MAP[@]}";do
+            echo "$key=${PARAMS_MAP[$key]}" >> $LOCAL_CFG
+        done
+        echo "Generated '$LOCAL_CFG'"
+        cat $LOCAL_CFG
+        exit 0
+    fi
     exit 0
 fi
 
@@ -370,7 +395,7 @@ elif [ $test_in_n -eq 0  ]; then
     type_testing=2
 elif [ $test_c_n -eq 0  ]; then
     log 2 "Using $test_in_n $FILE_PREFIX.in files."
-    if [ -z $MAIN_FILE ]; then
+    if [ -z "$MAIN_FILE" ]; then
         echo "Error: Missing main c file!" >&2
         exit 1
     fi
