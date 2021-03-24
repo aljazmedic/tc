@@ -33,7 +33,7 @@
 
 TC_PATH="."
 LOG_LEVEL=3
-ENTRY_FUNCTION="main"
+ENTRY_FUNCTION=""
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
 TIMED=0
@@ -271,12 +271,15 @@ log 4 "CLI params: '${!PARAMS_MAP[@]}'"
 log 4 "Using path: '$TC_PATH'"
 log 4 "Log level:  '$LOG_LEVEL'"
 
+# Add entry function if specified
+if [[ ! -z $ENTRY_FUNCTION ]];then
+    CCFLAGS="$CCFLAGS -Wl,--entry=$ENTRY_FUNCTION"
+fi
+
 ### HELPER FUNCTIONS
 
 function remove_leading_dotslash { echo "$@" | sed -e "s/^\.\///g"; }
-function get_test_num {
-    echo "$@" | grep -Po "(?<=$FILE_PREFIX)([0-9]+)(?=.c)";
-    }
+function get_test_num { echo "$@" | grep -Po "(?<=$FILE_PREFIX)([0-9]+)(?=.c)"; }
 function rm_extension { echo "$@" | grep -Po "(.*)(?=\.)"; }
 function get_base_name { rm_extension $(basename "$1"); }
 
@@ -368,8 +371,8 @@ function compile_cc {
     abs_target=$(realpath "$1")
     base_name=$(rm_extension $abs_target)
     base_target=$(basename "$1")
-    log 4 "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION"
-    $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION
+    log 4 "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS"
+    $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS
     exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         echo -e "Compiling file $base_target $FAILED_STRING, exiting" >&2
@@ -476,6 +479,7 @@ do
             timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
+            log 4 "Run $exe_name > $cbase_name.res"
         else
             ### TESTING .in, .out
             in_file="$cbase_name.in"
@@ -487,6 +491,7 @@ do
             timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
+            log 4 "Run $exe_name < $in_file > $cbase_name.res"
         fi
         if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
             echo -e "${file_name^} -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
