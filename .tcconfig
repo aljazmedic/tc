@@ -1,0 +1,20 @@
+ENTRY_FUNCTION="main"   # C program entry function
+FILE_PREFIX="test"      # Test file prefix
+TIMEOUT_VAL=1           # Largest amount of seconds allowed before timeout
+TIMED=1                 # Display time taken to execute the code
+
+CC="gcc"
+CCFLAGS="-std=c99 -pedantic -Wall"
+LIBS="-lm"
+
+DIFF_TIMEOUT=0.5
+
+LOG_LEVEL=3
+# 1 - results only
+# 2 - testing
+# 3 - testing & compiling
+# 4 - debug
+
+OK_STRING="\033[1;32mOK\033[0;38m"
+FAILED_STRING="\033[1;31mfailed\033[0;38m"
+TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"

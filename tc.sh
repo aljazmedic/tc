@@ -6,7 +6,7 @@
 #?    clean               Delete diff and res files
 #? -h, --help             Help on command usage
 #? -t, --timed            Display time taken to execute the code
-#? -T <n>, --timeout <n>  Larges amount of seconds allowed before
+#? -T <n>, --timeout <n>  Largest amount of seconds allowed before
 #?                        timeout
 #?                        Default: 1
 #? -n <I>                 Interval range of tests
@@ -23,11 +23,10 @@
 #?                        Default: 'main'
 
 TC_PATH="."
-TESTS=""
+LOG_LEVEL=3
 ENTRY_FUNCTION="main"
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
-KILL_AFTER=$((TIMEOUT_VAL+2))
 TIMED=0
 
 ### CONSTANTS, inspired by FRI Makefile
@@ -35,14 +34,25 @@ CC="gcc"
 CCFLAGS="-std=c99 -pedantic -Wall"
 LIBS="-lm"
 DIFF_TIMEOUT=0.5
-LOG="/dev/null"
 
-TIMEOUT_SIGNAL=124
-SHELL="/bin/bash"
 OK_STRING="\033[1;32mOK\033[0;38m"
 FAILED_STRING="\033[1;31mfailed\033[0;38m"
 TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"
 
+GLOBAL_CFG=$(realpath "$(dirname $0)/.tcconfig")
+
+if [[ -f $GLOBAL_CFG ]]; then
+    source $GLOBAL_CFG
+else
+    echo "Warning! Add global .tcconfig in tc.sh folder,"
+    echo "so 'init' command will work properly"
+fi
+
+TIMEOUT_SIGNAL=124
+SHELL="/bin/bash"
+
+TESTS=""
+KILL_AFTER=$((TIMEOUT_VAL+2))
 ### CHECKING IF ALL THE PROGRAMS EXIST
 REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "sort" "timeout" "$CC")
 
@@ -63,7 +73,7 @@ function print_help
     echo
     echo " -h, --help             Help on command usage"
     echo " -t, --timed            Display time taken to execute the code"
-    echo " -T <n>, --timeout <n>  Larges amount of seconds allowed before"
+    echo " -T <n>, --timeout <n>  Largest amount of seconds allowed before"
     echo "                        timeout"
     echo "                        Default: 1"
     echo " -n <I>                 Interval range of tests"
@@ -80,9 +90,19 @@ function print_help
     echo "                        Default: 'main'"
 }
 
+function log
+{
+    lvl="$1"
+    shift
+    if (( lvl <= LOG_LEVEL)); then
+        echo "$@"
+    fi
+}
 
 ### ARGUMENT PARSING
 POS_PARAMS=""
+
+declare -A PARAMS_MAP
 
 while (( "$#" )); do
   case "$1" in
@@ -91,12 +111,12 @@ while (( "$#" )); do
       exit 0
       ;;
     -t|--timed)
-      TIMED=1
+      PARAMS_MAP[TIMED]=1
       shift
       ;;
     -T|--timeout)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        TIMEOUT_VAL=$2
+        PARAMS_MAP[TIMEOUT_VAL]=$2
         shift 2
       else
         echo "Error: Missing value for $1" >&2
@@ -106,7 +126,7 @@ while (( "$#" )); do
       ;;
     -e|--entry)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        ENTRY_FUNCTION=$2
+        PARAMS_MAP[ENTRY_FUNCTION]=$2
         shift 2
       else
         echo "Error: Missing value for $1" >&2
@@ -116,8 +136,24 @@ while (( "$#" )); do
       ;;
     -f|--format)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        FILE_PREFIX=$2
+        PARAMS_MAP[FILE_PREFIX]=$2
         shift 2
+      else
+        echo "Error: Missing value for $1" >&2
+        print_help
+        exit 1
+      fi
+      ;;
+    -L|--log)
+      if [ -n "$2" ]; then
+        if [[ $2 =~ ^[1-4]$ ]]; then
+            PARAMS_MAP[LOG_LEVEL]=$2
+            shift 2
+        else
+            echo "Error: Invalid value for $1" >&2
+            print_help
+            exit 1
+        fi
       else
         echo "Error: Missing value for $1" >&2
         print_help
@@ -128,9 +164,9 @@ while (( "$#" )); do
         if [ -n "$2" ]; then
             if [[ $2 =~ ^([1-9][0-9]*)?(\-|\~)([1-9][0-9]*)?$ ]]; then
                 if [[ ${#2} -le 1 ]]; then # CASE '-n -'' or '-n ~' 
-                    TESTS=""
+                    PARAMS_MAP[TESTS]=""
                 else
-                    TESTS=$2
+                    PARAMS_MAP[TESTS]=$2
                 fi
                 shift 2
             else
@@ -155,22 +191,23 @@ while (( "$#" )); do
       ;;
   esac
 done
+
 # set positional arguments in their proper place
 eval set -- "$POS_PARAMS"
 
 # Check for action/-s
 ACTION="$1"
 case "${ACTION^^}" in
-    CLEAN)  #
+    CLEAN|INIT)  #
         shift # consume action arg
         if [ $# -gt 1 ]; then
             echo "Invalid number of arguments" >&2
             print_help
             exit 1
         elif [ $# -eq 1 ]; then
-            TC_PATH="$1" # CASE tc clean <path>
+            TC_PATH="$1" # CASE tc <action> <path>
         else
-            TC_PATH="."  # CASE tc clean
+            TC_PATH="."  # CASE tc <action>
         fi
     ;;
     *) #default is to test
@@ -181,13 +218,16 @@ case "${ACTION^^}" in
         # main_file
         MAIN_FILE="$1"
         shift
+        if [ ! -f "$MAIN_FILE" ] || [[ "$MAIN_FILE" =~ ".*\.c" ]];then
+            echo "Error: $MAIN_FILE is not a valid c file" >&2
+            exit 1
+        fi
         INCLUDE_FILES="$@" # Additional files to get compiled
      ;;
 esac
 
 
 ### VALIDATE
-
 ## Validate path
 
 if [ ! -d "$TC_PATH" ]; then
@@ -198,6 +238,22 @@ fi
 # absolute path for safety
 TC_PATH=$(realpath "$TC_PATH")
 
+### TRY GETTING LOCAL tcconfig
+# Check if new path is used and source from there
+LOCAL_CFG=$(realpath $TC_PATH/.tcconfig)
+if [[ -f $LOCAL_CFG ]]; then
+    source $LOCAL_CFG
+    log 4 "Sourcing $LOCAL_CFG"
+fi
+
+# Override settings with given params
+for key in "${!PARAMS_MAP[@]}";do
+    declare "$key"="${PARAMS_MAP[$key]}" # Secure, cuz keys are manually added.
+done
+
+log 4 "CLI params: '${!PARAMS_MAP[@]}'"
+log 4 "Using path: '$TC_PATH'"
+log 4 "Log level:  '$LOG_LEVEL'"
 
 ### HELPER FUNCTIONS
 
@@ -211,8 +267,6 @@ function get_base_name { rm_extension $(basename "$1"); }
 
 
 ### CLEANING
-
-
 if [[ ${ACTION^^} = "CLEAN" ]]; then
     file_matches=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.\(res\|diff\) | sort) # Search for tests
     
@@ -224,11 +278,19 @@ if [[ ${ACTION^^} = "CLEAN" ]]; then
     echo "Remove all [y/n]?"
     read -p "> " ans
     if [ ${ans^^}  = "Y" ]; then
-        #rm "$file_matches"
         for f in "$file_matches"; do
-            rm $(remove_leading_dotslash "$f")
+            rm "$f"
         done
     fi
+    exit 0
+elif [[ ${ACTION^^} = "INIT" ]]; then
+    cp "$GLOBAL_CFG" "$TC_PATH"
+    exit_code=$?
+    if [[ $exit_code -ne 0 ]];then
+        echo "Error: cannot add .tcconfig to $TC_PATH" >&2
+        exit $exit_code
+    fi
+    echo "Added .tcconfig to $TC_PATH"
     exit 0
 fi
 
@@ -265,14 +327,14 @@ function compile_cc {
     abs_target=$(realpath "$1")
     base_name=$(rm_extension $abs_target)
     base_target=$(basename "$1")
-    # echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION"
+    log 4 "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION"
     $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION
     exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         echo -e "Compiling file $base_target $FAILED_STRING, exiting" >&2
         exit 1
     fi
-    echo "Compiled $base_target"
+    log 3 "Compiled $base_target"
 }
 
 
@@ -288,12 +350,12 @@ if [ $test_c_n -eq 0 ] && [ $test_in_n -eq 0 ];then
     echo "No tests found in $TC_PATH." >&2
     exit 1
 elif [ $test_in_n -eq 0  ]; then
-    echo "Using $test_c_n $FILE_PREFIX.c files."
+    log 2 "Using $test_c_n $FILE_PREFIX.c files."
     type_testing=2
 elif [ $test_c_n -eq 0  ]; then
-    echo "Using $test_in_n $FILE_PREFIX.in files."
+    log 2 "Using $test_in_n $FILE_PREFIX.in files."
     if [ -z $MAIN_FILE ]; then
-        echo "Missing main c file!" >&2
+        echo "Error: Missing main c file!" >&2
         exit 1
     fi
     type_testing=1
@@ -333,7 +395,7 @@ fi
 
 ### CONDITIONAL COMPILING
 
-echo " == COMPILING =="
+log 3 " == COMPILING =="
 
 if [ "$type_testing" == "1" ];then
     compile_cc "$MAIN_FILE"
@@ -344,12 +406,12 @@ elif [ "$type_testing" == "2" ]; then
         compile_cc "$file"
     done
 fi
+log 3
 
 
 all_tests=0
 ok_tests=0
-echo
-echo " == TESTING =="
+log 2 " == TESTING =="
 for test_case in $test_cases
 do
     # Get variables for this case
@@ -386,7 +448,7 @@ do
             end_time=$(date +%s.%N)
         fi
         if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
-            echo -e "$filenname -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
+            echo -e "${file_name^} -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
         else
             if [ $TIMED -eq 1 ]; then
                 timeDifference=" [$(echo "scale=2; $end_time - $start_time" | bc | awk '{printf "%.2f\n", $0}') s]"
@@ -408,4 +470,4 @@ do
     fi
 done
 
-echo "Result $ok_tests/$all_tests"
+log 1 "Result $ok_tests/$all_tests"
