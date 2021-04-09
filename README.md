@@ -8,7 +8,7 @@ Parametri
 
 <pre>
 tc.sh [-h] [clean|init] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_program_1> ...]
-    [-t | -T &ltn> | -f &lts> | -n &ltI> ] 
+    [ -t | -o | -T &ltn> | -f &lts> | -n &ltI> ] 
 
  funkcija:
     clean               Izbris diff in res datotek
@@ -17,6 +17,8 @@ tc.sh [-h] [clean|init] [&ltpot_do_testov>] &ltglavni_c_program> [&ltdodatni_c_p
  -h, --help             Pomoč
 
  -t, --timed            Izpis časa
+
+ -o, --show-output      Izpis izhoda programa
 
  -T &ltn>, --timeout &ltn>  Največje dovoljeno število sekund
                         izvajanja programa

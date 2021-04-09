@@ -9,6 +9,7 @@
 #?
 #? -h, --help             Help on command usage
 #? -t, --timed            Display time taken to execute the code
+#? -o, --show-output      Show program output
 #? -T <n>, --timeout <n>  Largest amount of seconds allowed before
 #?                        timeout
 #?                        Default: 1
@@ -37,7 +38,7 @@ ENTRY_FUNCTION=""
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
 TIMED=0
-
+PRINT_OUTPUT=0
 ### CONSTANTS, inspired by FRI Makefile
 CC="gcc"
 CCFLAGS="-std=c99 -pedantic -Wall"
@@ -62,6 +63,43 @@ SHELL="/bin/bash"
 
 TESTS=""
 KILL_AFTER=$((TIMEOUT_VAL+2))
+
+
+### OS-specific
+
+function get_os_type
+{
+    case "$OSTYPE" in
+        #solaris*) echo "SOLARIS" ;;
+        darwin*)  echo "OSX" ;; #
+        linux*)   echo "LINUX" ;; #
+        #bsd*)     echo "BSD" ;;
+        msys*)    echo "WINDOWS" ;;
+        *)        echo "UNSUPPORTED" ;;
+    esac
+}
+
+os_type=$(get_os_type)
+if [ "$os_type" = "LINUX" ]; then
+    get_exe() { r=$(realpath $1); chmod +x $r; echo "$r"; }
+elif [ "$os_type" = "OSX" ]; then # TODO: gdate, gdiff, gtimeout?
+    get_exe() {
+        alias date="gdate"
+        alias diff="gdiff"
+        alias timeout="gtimeout"
+        r=$(realpath $1);
+        chmod +x $r;
+        echo "$r";
+    }
+elif [ "$os_type" = "WINDOWS" ]; then
+    get_exe() {  r=$(realpath $1); echo "$r.exe"; }
+else 
+    echo "Unsupported OS" >&2 #
+    exit 1
+fi
+
+
+
 ### CHECKING IF ALL THE PROGRAMS EXIST
 REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "sort" "timeout" "$CC")
 
@@ -83,6 +121,7 @@ function print_help
     echo
     echo " -h, --help             Help on command usage"
     echo " -t, --timed            Display time taken to execute the code"
+    echo " -o, --show-output      Show program output"
     echo " -T <n>, --timeout <n>  Largest amount of seconds allowed before"
     echo "                        timeout"
     echo "                        Default: 1"
@@ -128,6 +167,10 @@ while (( "$#" )); do
       ;;
     -t|--timed)
       PARAMS_MAP[TIMED]=1
+      shift
+      ;;
+    -o|--show-output)
+      PARAMS_MAP[PRINT_OUTPUT]=1
       shift
       ;;
     -T|--timeout)
@@ -208,7 +251,7 @@ while (( "$#" )); do
   esac
 done
 
-# set positional arguments in their proper place
+# Set positional arguments in their proper place
 eval set -- "$POS_PARAMS"
 
 # Check for action/-s
@@ -318,7 +361,7 @@ elif [[ ${ACTION^^} = "INIT" ]]; then
     # If parameters were passed, only use those
     log 4 "$PARAMS_MAP"
     if [ -z ${PARAMS_MAP[@]} ]; then
-        cp "$GLOBAL_CFG" "$TC_PATH"
+        cp "$GLOBAL_CFG" "$TC_PATH" 2>/dev/null
         exit_code=$?
         if [[ $exit_code -ne 0 ]];then
             echo "Error: cannot add .tcconfig to $TC_PATH" >&2
@@ -338,32 +381,6 @@ elif [[ ${ACTION^^} = "INIT" ]]; then
     exit 0
 fi
 
-
-### OS-specific
-
-function get_os_type
-{
-    case "$OSTYPE" in
-        #solaris*) echo "SOLARIS" ;;
-        darwin*)  echo "OSX" ;; #
-        linux*)   echo "LINUX" ;; #
-        #bsd*)     echo "BSD" ;;
-        msys*)    echo "WINDOWS" ;;
-        *)        echo "UNSUPPORTED" ;;
-    esac
-}
-
-os_type=$(get_os_type)
-if [ "$os_type" = "LINUX" ]; then
-    get_exe() { r=$(realpath $1); chmod +x $r; echo "$r"; }
-elif [ "$os_type" = "OSX" ]; then # TODO: gdate, gdiff, gtimeout?
-    get_exe() { r=$(realpath $1); chmod +x $r; echo "$r"; }
-elif [ "$os_type" = "WINDOWS" ]; then
-    get_exe() {  r=$(realpath $1); echo "$r.exe"; }
-else 
-    echo "Unsupported OS" >&2 #
-    exit 1
-fi
 
 ### COMPILING FUNCTION
 
@@ -494,6 +511,7 @@ do
             log 4 "Run $exe_name < $in_file > $cbase_name.res"
         fi
         if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
+            # Program timed out
             echo -e "${file_name^} -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
         else
             if [ $TIMED -eq 1 ]; then
@@ -501,15 +519,22 @@ do
             else
                 timedDifference=""
             fi
-            timeout -k $DIFF_TIMEOUT $DIFF_TIMEOUT diff --ignore-trailing-space $base_name.out $base_name.res > $base_name.diff
+            timeout -k $DIFF_TIMEOUT $DIFF_TIMEOUT diff --ignore-trailing-space $base_name.out $base_name.res > $base_name.diff 2> /dev/null
             exit_code=$?
             if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
                 echo -e "${file_name^} -- $FAILED_STRING (diff errored)$timeDifference"
-            elif [ -s "$base_name.diff" ]; then
-                echo -e "${file_name^} -- $FAILED_STRING$timeDifference"
             else
-                echo -e "${file_name^} -- $OK_STRING$timeDifference"
-                ((ok_tests+=1))
+                if [ -s "$base_name.diff" ]; then
+                    echo -e "${file_name^} -- $FAILED_STRING$timeDifference"
+                else
+                    echo -e "${file_name^} -- $OK_STRING$timeDifference"
+                    ((ok_tests+=1))
+                fi
+                if [ $PRINT_OUTPUT -eq 1 ]; then
+                    echo -ne "${BEGIN_OUTPUT}"
+                    cat $cbase_name.res 2>/dev/null
+                    echo -ne "${END_OUTPUT}"
+                fi
             fi
         fi
         ((all_tests+=1))

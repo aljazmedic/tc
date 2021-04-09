@@ -1,13 +1,13 @@
-#ENTRY_FUNCTION="_start"
-FILE_PREFIX="test"      # Test file prefix
-TIMEOUT_VAL=1           # Largest amount of seconds allowed before timeout
-TIMED=1                 # Display time taken to execute the code
+#ENTRY_FUNCTION="_start"            # Entry function, cc default is '_start', may be changed to '__main__', if required
+FILE_PREFIX="test"                  # Test file prefix
+TIMEOUT_VAL=1                       # Largest amount of seconds allowed before timeout
+TIMED=1                             # Display time taken to execute the code
+PRINT_OUTPUT=0                      # Output program output on test end
+CC="gcc"                            # C compiler. Can be exchanged with g++ for .cpp files
+CCFLAGS="-std=c99 -pedantic -Wall"  # gcc flags
+LIBS="-lm"                          # Additional libraries for gcc
 
-CC="gcc"
-CCFLAGS="-std=c99 -pedantic -Wall"
-LIBS="-lm"
-
-DIFF_TIMEOUT=0.5
+DIFF_TIMEOUT=0.5                    # Diff timeout in seconds
 
 LOG_LEVEL=3
 # 1 - results only
@@ -15,6 +15,8 @@ LOG_LEVEL=3
 # 3 - testing & compiling
 # 4 - debug
 
-OK_STRING="\033[1;32mOK\033[0;38m"
-FAILED_STRING="\033[1;31mfailed\033[0;38m"
-TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"
+OK_STRING="\033[1;32mOK\033[0;38m"                  # Colored OK string
+FAILED_STRING="\033[1;31mfailed\033[0;38m"          # Colored failed string
+TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"        # Colored timeout string
+BEGIN_OUTPUT="\033[1;36m"                           # Begin Color cyan
+END_OUTPUT="\033[0;38m"                             # End all colors
