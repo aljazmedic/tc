@@ -386,7 +386,7 @@ do
             end_time=$(date +%s.%N)
         fi
         if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
-            echo -e "$filenname -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
+            echo -e "${file_name^} -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
         else
             if [ $TIMED -eq 1 ]; then
                 timeDifference=" [$(echo "scale=2; $end_time - $start_time" | bc | awk '{printf "%.2f\n", $0}') s]"
