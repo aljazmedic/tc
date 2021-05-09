@@ -408,4 +408,4 @@ do
     fi
 done
 
-echo "Result $ok_tests/$all_tests"
+echo "Result: $ok_tests / $all_tests"
