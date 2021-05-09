@@ -370,7 +370,7 @@ do
             ### TESTING .c .out
             exe_name=$(get_exe $cbase_name)
             start_time=$(date +%s.%N)
-            timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2> /dev/null
+	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2>&1) 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
         else
@@ -381,7 +381,7 @@ do
                 continue
             fi
             start_time=$(date +%s.%N)
-            timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2> /dev/null
+	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2>&1) 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
         fi
