@@ -370,7 +370,7 @@ do
             ### TESTING .c .out
             exe_name=$(get_exe $cbase_name)
             start_time=$(date +%s.%N)
-            timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2> /dev/null
+	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2>&1) 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
         else
@@ -381,12 +381,12 @@ do
                 continue
             fi
             start_time=$(date +%s.%N)
-            timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2> /dev/null
+	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2>&1) 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
         fi
         if [[ $exit_code == $TIMEOUT_SIGNAL ]]; then
-            echo -e "$filenname -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
+            echo -e "${file_name^} -- $TIMEOUT_STRING [> $TIMEOUT_VAL s]"
         else
             if [ $TIMED -eq 1 ]; then
                 timeDifference=" [$(echo "scale=2; $end_time - $start_time" | bc | awk '{printf "%.2f\n", $0}') s]"
@@ -408,4 +408,4 @@ do
     fi
 done
 
-echo "Result $ok_tests/$all_tests"
+echo "Result: $ok_tests / $all_tests"
