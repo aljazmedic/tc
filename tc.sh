@@ -1,6 +1,6 @@
 #!/bin/bash
 #?Usage:
-#? tc.sh [-h] [clean] [<tests_path>] <main_c_program> [<included_c_programs> ...]
+#? tc.sh [-h] [clean] [<tests_path>] <main_c/java_program> [<included_c/java_programs> ...]
 #?    [-t | -T <n> | -f <s> | -n &ltI> ] 
 #? actions:
 #?    clean               Delete diff and res files
@@ -19,11 +19,18 @@
 #?                        Default: '-' (all)
 #? -f <s>, --format <s>   Format of test data prefix
 #?                        Default: 'test'
+#? -a <I>, --argc <I>     Number of command-line arguments
+#?                        0 - in/out testing format: <exe> < <in-file> > <res-file>
+#?                        1 - in/out testing format: <exe> <in-file> > <res-file>
+#?                        2 - in/out testing format: <exe> <in-file> <res-file>
+#?                        Default: 0"
 #? -e <f>, --entry <f>    Default entry function for c file
 #?                        Default: 'main'
 
 TC_PATH="."
 TESTS=""
+MODE="C"
+ARGC=0
 ENTRY_FUNCTION="main"
 FILE_PREFIX="test"
 TIMEOUT_VAL=1 #in seconds
@@ -33,7 +40,11 @@ TIMED=0
 ### CONSTANTS, inspired by FRI Makefile
 CC="gcc"
 CCFLAGS="-std=c99 -pedantic -Wall"
-LIBS="-lm"
+CLIBS="-lm"
+
+JC="javac"
+JCFLAGS=""
+
 DIFF_TIMEOUT=0.5
 LOG="/dev/null"
 
@@ -44,7 +55,7 @@ FAILED_STRING="\033[1;31mfailed\033[0;38m"
 TIMEOUT_STRING="\033[1;35mtimeout\033[0;38m"
 
 ### CHECKING IF ALL THE PROGRAMS EXIST
-REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "sort" "timeout" "$CC")
+REQUIRED_PROGRAMS=("awk" "basename" "bc" "cut" "date" "diff" "find" "grep" "realpath" "sort" "timeout")
 
 for PROGRAM in ${REQUIRED_PROGRAMS[@]}; do
     if ! command -v $PROGRAM &> /dev/null; then
@@ -55,7 +66,7 @@ done
 
 function print_help
 {
-    echo " tc.sh [-h] [clean] [<tests_path>] <main_c_program> [<included_c_programs> ...]"
+    echo " tc.sh [-h] [clean] [<tests_path>] <main_c/java_program> [<included_c/java_programs> ...]"
     echo "    [-t | -T <n> | -f <s> | -n &ltI> ] "
     echo
     echo " actions:"
@@ -76,6 +87,11 @@ function print_help
     echo "                        Default: '-' (all)"
     echo " -f <s>, --format <s>   Format of test data prefix"
     echo "                        Default: 'test'"
+    echo " -a <I>, --argc <I>     Number of command-line arguments"
+    echo "                        0 - in/out testing format: <exe> < <in-file> > <res-file>"
+    echo "                        1 - in/out testing format: <exe> <in-file> > <res-file>"
+    echo "                        2 - in/out testing format: <exe> <in-file> <res-file>"
+    echo "                        Default: 0"
     echo " -e <f>, --entry <f>    Default entry function for c file"
     echo "                        Default: 'main'"
 }
@@ -102,6 +118,18 @@ while (( "$#" )); do
         echo "Error: Missing value for $1" >&2
         print_help
         exit 1
+      fi
+      ;;
+    -a|--argc)
+      if [ -n "$2" ]; then
+        if [[ $2 =~ ^[0-2]$ ]]; then
+            ARGC=$2
+            shift 2
+        else
+            echo "Error: Invalid value for $1" >&2
+            print_help
+            exit 1
+        fi
       fi
       ;;
     -e|--entry)
@@ -181,7 +209,29 @@ case "${ACTION^^}" in
         # main_file
         MAIN_FILE="$1"
         shift
-        INCLUDE_FILES="$@" # Additional files to get compiled
+        if [[ "$MAIN_FILE" == "" ]]; then
+            echo "Error: Missing c or java file"
+            exit 1
+        fi
+        if [ ! -f "$MAIN_FILE" ] || [[ "$MAIN_FILE" =~ ".*\.(c|java)" ]]; then
+            echo "Error: $MAIN_FILE is not a valid c or java file" >&2
+            exit 1
+        fi
+        if [[ $MAIN_FILE == *.c ]]; then
+            if ! command -v $CC &> /dev/null; then
+                echo "Error: '$CC' not found, exiting" >&2
+                exit 1
+            fi
+            MODE="C"
+            INCLUDE_FILES="$@" # Additional files to get compiled
+        else
+            if ! command -v $JC &> /dev/null; then
+                echo "Error: '$JC' not found, exiting" >&2
+                exit 1
+            fi
+            MODE="Java"
+        fi
+        echo "Mode: $MODE"
      ;;
 esac
 
@@ -261,12 +311,16 @@ fi
 
 ### COMPILING FUNCTION
 
-function compile_cc {
+function compile {
     abs_target=$(realpath "$1")
     base_name=$(rm_extension $abs_target)
     base_target=$(basename "$1")
-    # echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION"
-    $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $LIBS --entry=$ENTRY_FUNCTION
+    if [[ "$MODE" == "C" ]]; then
+        # echo "$CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $CLIBS --entry=$ENTRY_FUNCTION"
+        $CC $CCFLAGS $INCLUDE_FILES $abs_target -o $base_name $CLIBS --entry=$ENTRY_FUNCTION
+    else
+        $JC $JCFLAGS $INCLUDE_FILES $abs_target
+    fi
     exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         echo -e "Compiling file $base_target $FAILED_STRING, exiting" >&2
@@ -278,33 +332,47 @@ function compile_cc {
 
 ### DETECTING TYPE OF TESTING
 
-test_c_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.c  | sort ) # Search for tests
 test_in_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.in  | sort ) # Search for tests
-
-test_c_n=$(echo "$test_c_files" | wc -w | bc)
 test_in_n=$(echo "$test_in_files" | wc -w | bc)
 
-if [ $test_c_n -eq 0 ] && [ $test_in_n -eq 0 ];then
-    echo "No tests found in $TC_PATH." >&2
-    exit 1
-elif [ $test_in_n -eq 0  ]; then
-    echo "Using $test_c_n $FILE_PREFIX.c files."
-    type_testing=2
-elif [ $test_c_n -eq 0  ]; then
-    echo "Using $test_in_n $FILE_PREFIX.in files."
-    if [ -z $MAIN_FILE ]; then
-        echo "Missing main c file!" >&2
+if [[ "$MODE" == "C" ]]; then
+    test_c_files=$(find $TC_PATH -maxdepth 1 -type f | grep -E $FILE_PREFIX[0-9]+\.c  | sort ) # Search for tests
+    test_c_n=$(echo "$test_c_files" | wc -w | bc)
+    
+    if [ $test_c_n -eq 0 ] && [ $test_in_n -eq 0 ];then
+        echo "No tests found in $TC_PATH." >&2
         exit 1
+    elif [ $test_in_n -eq 0  ]; then
+        echo "Using $test_c_n $FILE_PREFIX.c files."
+        type_testing=2
+    elif [ $test_c_n -eq 0  ]; then
+        echo "Using $test_in_n $FILE_PREFIX.in files."
+        if [ -z $MAIN_FILE ]; then
+            echo "Missing main c file!" >&2
+            exit 1
+        fi
+        type_testing=1
+    else
+        echo "Found differend tests. Select type of testing"
+        echo "[1] #$test_in_n $FILE_PREFIX.in files"
+        echo "[2] #$test_c_n  $FILE_PREFIX.c files?"
+        read -p "> " type_testing
+        if [ "$type_testing" != "1" ] && [ "$type_testing" != "2" ];then
+            echo "Invalid option: \"$type_testing\", exiting." >&2
+            exit 1  
+        fi
     fi
-    type_testing=1
 else
-    echo "Found differend tests. Select type of testing"
-    echo "[1] #$test_in_n $FILE_PREFIX.in files"
-    echo "[2] #$test_c_n  $FILE_PREFIX.c files?"
-    read -p "> " type_testing
-    if [ "$type_testing" != "1" ] && [ "$type_testing" != "2" ];then
-        echo "Invalid option: \"$type_testing\", exiting." >&2
-        exit 1  
+    if [ $test_in_n -eq 0 ]; then
+        echo "No tests found in $TC_PATH." >&2
+        exit 1
+    else
+        log 2 "Using $test_in_n $FILE_PREFIX.in files."
+        if [ -z "$MAIN_FILE" ]; then
+            echo "Error: Missing main java file!" >&2
+            exit 1
+        fi
+        type_testing=1
     fi
 fi
 
@@ -335,14 +403,19 @@ fi
 
 echo " == COMPILING =="
 
-if [ "$type_testing" == "1" ];then
-    compile_cc "$MAIN_FILE"
-    exe_name=$(get_exe $(rm_extension $MAIN_FILE))
-elif [ "$type_testing" == "2" ]; then
-    INCLUDE_FILES="$MAIN_FILE $INCLUDE_FILES" # Main file is just an include
-    for file in $test_cases; do
-        compile_cc "$file"
-    done
+if [ "$MODE" == "C" ]; then
+    if [ "$type_testing" == "1" ];then
+        compile "$MAIN_FILE"
+        exe_name=$(get_exe $(rm_extension $MAIN_FILE))
+    elif [ "$type_testing" == "2" ]; then
+        INCLUDE_FILES="$MAIN_FILE $INCLUDE_FILES" # Main file is just an include
+        for file in $test_cases; do
+            compile "$file"
+        done
+    fi
+else
+    compile "$MAIN_FILE"
+    exe_name="java $(rm_extension $MAIN_FILE)"
 fi
 
 
@@ -358,7 +431,7 @@ do
     #i=$(get_test_num $file_name)
     #echo "$i $file_name"
     #echo "$base_name $test_case $file_name"
-    cbase_name=$(realpath "$base_name")
+    full_base_name=$(realpath "$base_name")
     out_file="$base_name.out"
 
     # Check if .out exists
@@ -368,20 +441,26 @@ do
     else
         if [ "$type_testing" == "2" ];then
             ### TESTING .c .out
-            exe_name=$(get_exe $cbase_name)
+            exe_name=$(get_exe $full_base_name)
             start_time=$(date +%s.%N)
-	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $cbase_name.res 2>&1) 2> /dev/null
+	        $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name > $full_base_name.res 2>&1) 2> /dev/null
             exit_code=$?
             end_time=$(date +%s.%N)
         else
             ### TESTING .in, .out
-            in_file="$cbase_name.in"
+            in_file="$full_base_name.in"
             if ! [ -f  "$in_file" ]; then
                 echo "Missing $in_file for $test_case"
                 continue
             fi
             start_time=$(date +%s.%N)
-	    $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $cbase_name.res 2>&1) 2> /dev/null
+            if [[ "$ARGC" == "0" ]]; then
+	            $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name < $in_file > $full_base_name.res 2>&1) 2> /dev/null
+            elif [[ "$ARGC" == "1" ]]; then
+	            $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name $in_file > $full_base_name.res 2>&1) 2> /dev/null
+            else
+	            $(timeout -k $KILL_AFTER $TIMEOUT_VAL $exe_name $in_file $full_base_name.res 2>&1) 2> /dev/null
+            fi
             exit_code=$?
             end_time=$(date +%s.%N)
         fi
